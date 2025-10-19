@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Math Board Game — Multiplayer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <div class="container">
+      <h1>Math Board Game — Multiplayer</h1>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <ul class="flash">
+            {% for m in messages %}<li>{{ m }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+
+      <p class="msg">{{ message }}</p>
+
+      <div class="setup">
+        {% if players|length == 0 %}
+          <form action="{{ url_for('setup') }}" method="post">
+            <h3>Players (1–4)</h3>
+            <div class="grid2">
+              <label>Player 1 <input name="name1" required></label>
+              <label>Player 2 <input name="name2"></label>
+              <label>Player 3 <input name="name3"></label>
+              <label>Player 4 <input name="name4"></label>
+            </div>
+            <button type="submit">Start Game</button>
+          </form>
+        {% else %}
+          <div class="players">
+            <h3>Players</h3>
+            <ul>
+              {% for p in players %}
+                <li {% if loop.index0 == turn %}class="active"{% endif %}>
+                  {% if loop.index0 == turn %}▶ {% endif %}{{ p.name }} — pos {{ p.pos }}
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="board">
+        {% for i in range(board_size, 0, -1) %}
+          {% set mark = [] %}
+          {% for p in players %}
+            {% if p.pos == i %}{% set _ = mark.append(p.name[0]|upper) %}{% endif %}
+          {% endfor %}
+          <div class="cell">
+            {{ i }}
+            {% if mark %}<div class="tokens">{{ ''.join(mark) }}</div>{% endif %}
+          </div>
+        {% endfor %}
+        <div class="cell start">
+          Start
+          {% set startmarks = [] %}
+          {% for p in players %}
+            {% if p.pos == 0 %}{% set _ = startmarks.append(p.name[0]|upper) %}{% endif %}
+          {% endfor %}
+          {% if startmarks %}<div class="tokens">{{ ''.join(startmarks) }}</div>{% endif %}
+        </div>
+      </div>
+
+      {% if winner %}
+        <p class="win">🎉 {{ winner }} wins! (Saved to scoreboard.) Reset to play again.</p>
+      {% endif %}
+
+      <div class="controls">
+        <form action="{{ url_for('roll') }}" method="post" class="inline">
+          <button type="submit" {% if players|length == 0 or awaiting_answer or winner %}disabled{% endif %}>🎲 Roll</button>
+        </form>
+        <form action="{{ url_for('reset') }}" method="post" class="inline">
+          <button type="submit">↺ Reset</button>
+        </form>
+      </div>
+
+      {% if awaiting_answer and current_question %}
+        <div class="question">
+          <form action="{{ url_for('answer') }}" method="post">
+            <label>Solve for {{ players[turn].name }}: <strong>{{ current_question.q }}</strong></label>
+            <input name="answer" autocomplete="off" required />
+            <button type="submit">Submit</button>
+          </form>
+        </div>
+      {% endif %}
+
+      <details class="import">
+        <summary>Import/Append Questions (current: {{ questions_count }})</summary>
+        <form action="{{ url_for('upload_questions') }}" method="post" enctype="multipart/form-data">
+          <p>Upload a CSV with headers <code>q,a</code> or <code>question,answer</code>. Or paste CSV below.</p>
+          <input type="file" name="file" accept=".csv">
+          <textarea name="pasted" rows="5" placeholder="q,a&#10;9x9,81&#10;12+3,15"></textarea>
+          <button type="submit">Load Questions</button>
+        </form>
+      </details>
+
+      <h3>Scoreboard</h3>
+      <table class="scoreboard">
+        <thead><tr><th>Player</th><th>Wins</th><th>Games</th><th>Win %</th></tr></thead>
+        <tbody>
+          {% for r in scoreboard %}
+            <tr><td>{{ r.name }}</td><td>{{ r.wins }}</td><td>{{ r.games_played }}</td><td>{{ r.win_rate }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p><a href="{{ url_for('export_csv') }}">Download scoreboard CSV</a></p>
+
+      <footer>
+        <p>Uses SQLite for persistence. On Render, mount a persistent disk and set <code>DB_PATH</code>.</p>
+      </footer>
+    </div>
+  </body>
+</html>

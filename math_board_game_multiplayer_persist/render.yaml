@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: math-board-game-mp-persist
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: DB_PATH
+        value: /var/data/scoreboard.sqlite
+    disk:
+      name: scoreboard-data
+      mountPath: /var/data
+      sizeGB: 1
