@@ -73,6 +73,38 @@ def export_scoreboard_csv():
     output.seek(0)
     return output
 
+import os
+from flask import abort
+
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")  # set this on Render
+
+def require_admin():
+    token = request.args.get("token") or request.headers.get("X-Admin-Token")
+    if not ADMIN_TOKEN or token != ADMIN_TOKEN:
+        abort(403, description="Forbidden")
+
+@app.route("/admin/reset", methods=["GET"])
+def admin_reset():
+    """Delete ALL players/scores."""
+    require_admin()
+    with get_conn() as conn:
+        conn.execute("DELETE FROM players")
+        conn.commit()
+    return "✅ Scoreboard cleared."
+
+@app.route("/admin/delete_player", methods=["GET"])
+def admin_delete_player():
+    """Delete one player by exact name: /admin/delete_player?name=Alice&token=..."""
+    require_admin()
+    name = (request.args.get("name") or "").strip()
+    if not name:
+        abort(400, description="Missing ?name=")
+    with get_conn() as conn:
+        conn.execute("DELETE FROM players WHERE name = ?", (name,))
+        conn.commit()
+    return f"🗑️ Deleted player: {name}"
+
+
 # --- Game logic --------------------------------------------------------------
 
 DEFAULT_QUESTIONS = [
